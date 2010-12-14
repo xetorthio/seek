@@ -1,14 +1,15 @@
 package redis.seek.benchmarks;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.pool.impl.GenericObjectPool.Config;
 
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisShardInfo;
 import redis.seek.Entry;
 import redis.seek.Index;
-import redis.seek.Nest;
 import redis.seek.Seek;
 
 public class IndexBenchmark {
@@ -20,9 +21,10 @@ public class IndexBenchmark {
         jedis.quit();
         jedis.disconnect();
 
+        List<JedisShardInfo> shards = new ArrayList<JedisShardInfo>();
+        shards.add(new JedisShardInfo("localhost"));
         Config config = new Config();
-        JedisPool pool = new JedisPool(config, "localhost");
-        Nest.configure(pool);
+        Seek.configure(config, shards);
 
         Seek seek = new Seek();
         Index index = seek.index("items");

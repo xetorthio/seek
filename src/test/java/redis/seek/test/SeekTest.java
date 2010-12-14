@@ -1,5 +1,7 @@
 package redis.seek.test;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.pool.impl.GenericObjectPool.Config;
@@ -9,10 +11,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisShardInfo;
 import redis.seek.Entry;
 import redis.seek.Index;
-import redis.seek.Nest;
 import redis.seek.Search;
 import redis.seek.Seek;
 import redis.seek.Shard;
@@ -21,18 +22,20 @@ public class SeekTest extends Assert {
     private Jedis jedis;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() throws IOException {
         jedis = new Jedis("localhost");
         jedis.flushAll();
         jedis.quit();
         jedis.disconnect();
+        List<JedisShardInfo> shards = new ArrayList<JedisShardInfo>();
+        shards.add(new JedisShardInfo("localhost"));
         Config config = new Config();
-        JedisPool pool = new JedisPool(config, "localhost");
-        Nest.configure(pool);
+        Seek.configure(config, shards);
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
+        Seek.getPool().destroy();
     }
 
     @Test
