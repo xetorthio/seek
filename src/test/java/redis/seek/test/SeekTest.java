@@ -15,6 +15,7 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisShardInfo;
 import redis.seek.Entry;
 import redis.seek.Index;
+import redis.seek.Result;
 import redis.seek.Search;
 import redis.seek.Seek;
 import redis.seek.ShardField;
@@ -42,10 +43,10 @@ public class SeekTest extends Assert {
     @Test
     public void indexAndSearch() {
         addEntry("MLA98251174", 1287278019);
-        List<String> ids = search(0, 0, 50);
+        Result result = search(0, 0, 50);
 
-        assertEquals(1, ids.size());
-        assertEquals("MLA98251174", ids.get(0));
+        assertEquals(1, result.getTotalCount());
+        assertEquals("MLA98251174", result.getIds().get(0));
     }
 
     @Test
@@ -54,20 +55,21 @@ public class SeekTest extends Assert {
         addEntry("MLA98251175", 1287278020);
         addEntry("MLA98251176", 1287278021);
 
-        List<String> ids = search(0, 0, 0);
+        Result result = search(0, 0, 0);
 
-        assertEquals(1, ids.size());
-        assertEquals("MLA98251174", ids.get(0));
+        assertEquals(3, result.getTotalCount());
+        assertEquals(1, result.getIds().size());
+        assertEquals("MLA98251174", result.getIds().get(0));
     }
 
     @Test
     public void reindex() {
         addEntry("MLA98251174", 1287278019);
         addEntry("MLA98251174", 1287278019);
-        List<String> ids = search(0, 0, 50);
+        Result result = search(0, 0, 50);
 
-        assertEquals(1, ids.size());
-        assertEquals("MLA98251174", ids.get(0));
+        assertEquals(1, result.getTotalCount());
+        assertEquals("MLA98251174", result.getIds().get(0));
     }
 
     @Test
@@ -85,9 +87,9 @@ public class SeekTest extends Assert {
         Search search = seek.search("items", "start_date", new ShardField(
                 "seller_id", "84689862"));
         search.text("title", "ipod 160");
-        List<String> result = search.run(1, 0, 50);
+        Result result = search.run(1, 0, 50);
         Set<String> keys = jedis.keys("*result*");
-        assertEquals(1, result.size());
+        assertEquals(1, result.getTotalCount());
         assertEquals(1, keys.size());
         Thread.sleep(2000);
         keys = jedis.keys("*result*");
@@ -100,19 +102,18 @@ public class SeekTest extends Assert {
         Seek seek = new Seek();
         seek.index("items").remove("MLA98251174",
                 new ShardField("seller_id", "84689862"));
-        List<String> result = search(0, 0, 1);
-        assertEquals(0, result.size());
+        Result result = search(0, 0, 1);
+        assertEquals(0, result.getTotalCount());
     }
 
-    private List<String> search(int cache, int start, int end) {
+    private Result search(int cache, int start, int end) {
         Seek seek = new Seek();
         Search search = seek.search("items", "start_date", new ShardField(
                 "seller_id", "84689862"));
         search.field("category_id", "MLA31594", "MLA39056");
         search.tag("buy_it_now", "promotion");
         search.text("title", "ipod 160");
-        List<String> ids = search.run(cache, start, end);
-        return ids;
+        return search.run(cache, start, end);
     }
 
     private Seek addEntry(String id, double timestamp) {

@@ -96,12 +96,12 @@ public class Search {
         return sb.toString();
     }
 
-    public List<String> run() {
+    public Result run() {
         return run(0, 0, 50);
     }
 
     @SuppressWarnings("unchecked")
-    public List<String> run(int cache, int start, int end) {
+    public Result run(int cache, int start, int end) {
         String query = getQuery();
         String tmpkey = index.cat("queries").cat(query).cat("tmp").key();
         String rkey = index.cat("queries").cat(query).cat("result").key();
@@ -112,8 +112,10 @@ public class Search {
         try {
             long tstart = System.nanoTime();
             List<String> result = null;
+            long count = 0;
             if (jedis.exists(rkey)) {
                 Set<String> range = jedis.zrange(rkey, start, end);
+                count = jedis.zcard(rkey);
                 result = Arrays.asList(range.toArray(new String[range.size()]));
             } else {
                 Pipeline pipeline = shard.pipelined();
@@ -128,16 +130,19 @@ public class Search {
                     pipeline.zunionstore(rkey, zparams, tmpkey, rkey);
                 }
                 pipeline.zrange(rkey, start, end);
+                pipeline.zcard(rkey);
                 List<byte[]> rawresult = null;
                 if (cache == 0) {
                     pipeline.del(rkey, tmpkey);
                     List<Object> execute = pipeline.execute();
-                    rawresult = (List<byte[]>) execute.get(execute.size() - 2);
+                    rawresult = (List<byte[]>) execute.get(execute.size() - 3);
+                    count = (Long) execute.get(execute.size() - 2);
                 } else {
                     pipeline.del(tmpkey);
                     pipeline.expire(rkey, cache);
                     List<Object> execute = pipeline.execute();
-                    rawresult = (List<byte[]>) execute.get(execute.size() - 3);
+                    rawresult = (List<byte[]>) execute.get(execute.size() - 4);
+                    count = (Long) execute.get(execute.size() - 3);
                 }
                 result = prepareResult(rawresult);
             }
@@ -148,7 +153,7 @@ public class Search {
                 logger.info(((double) elapsed / 1000000000d) + " seconds"
                         + " - Query: " + query);
             }
-            return result;
+            return new Result(count, result);
         } catch (Exception e) {
             Seek.getPool().returnBrokenResource(jedis);
             throw new SeekException(e.getMessage());
