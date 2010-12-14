@@ -17,7 +17,7 @@ import redis.seek.Entry;
 import redis.seek.Index;
 import redis.seek.Search;
 import redis.seek.Seek;
-import redis.seek.Shard;
+import redis.seek.ShardField;
 
 public class SeekTest extends Assert {
     private Jedis jedis;
@@ -49,6 +49,16 @@ public class SeekTest extends Assert {
     }
 
     @Test
+    public void reindex() {
+        addEntry();
+        addEntry();
+        List<String> ids = search();
+
+        assertEquals(1, ids.size());
+        assertEquals("MLA98251174", ids.get(0));
+    }
+
+    @Test
     public void dontCacheByDefault() {
         addEntry();
         search();
@@ -60,7 +70,7 @@ public class SeekTest extends Assert {
     public void cache() throws InterruptedException {
         addEntry();
         Seek seek = new Seek();
-        Search search = seek.search("items", "start_date", new Shard(
+        Search search = seek.search("items", "start_date", new ShardField(
                 "seller_id", "84689862"));
         search.text("title", "ipod 160");
         List<String> result = search.run(1);
@@ -72,9 +82,19 @@ public class SeekTest extends Assert {
         assertEquals(0, keys.size());
     }
 
+    @Test
+    public void remove() {
+        addEntry();
+        Seek seek = new Seek();
+        seek.index("items").remove("MLA98251174",
+                new ShardField("seller_id", "84689862"));
+        List<String> result = search();
+        assertEquals(0, result.size());
+    }
+
     private List<String> search() {
         Seek seek = new Seek();
-        Search search = seek.search("items", "start_date", new Shard(
+        Search search = seek.search("items", "start_date", new ShardField(
                 "seller_id", "84689862"));
         search.field("category_id", "MLA31594", "MLA39056");
         search.tag("buy_it_now", "promotion");

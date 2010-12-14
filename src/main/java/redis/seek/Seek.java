@@ -27,7 +27,7 @@ public class Seek {
         return new Search(index, order);
     }
 
-    public Search search(String index, String order, Shard... shardFields) {
+    public Search search(String index, String order, ShardField... shardFields) {
         return new Search(index, order, shardFields);
     }
 }

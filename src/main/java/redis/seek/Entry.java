@@ -36,28 +36,40 @@ public class Entry {
 
     public void save() {
         Nest idx = (new Nest("indexes")).cat(index.getName());
+        ShardField[] sfields = new ShardField[shardFields.length];
+        int s = 0;
         for (String field : shardFields) {
             idx.cat(field).cat(fields.get(field));
+            sfields[s++] = new ShardField(field, fields.get(field));
         }
         idx = idx.fork();
         ShardedJedis jedis = Seek.getPool().getResource();
         Jedis shard = jedis.getShard(idx.key());
         try {
+            if (shard.exists(idx.cat(id).key())) {
+                index.remove(id, sfields);
+            }
             for (Map.Entry<String, Double> order : orders.entrySet()) {
                 Nest i = idx.cat("order").cat(order.getKey()).fork();
                 for (Map.Entry<String, String> field : fields.entrySet()) {
                     i.cat(field.getKey()).cat(field.getValue());
-                    shard.zadd(i.key(), order.getValue(), id);
+                    String key = i.key();
+                    shard.zadd(key, order.getValue(), id);
+                    shard.rpush(idx.cat(id).key(), key);
                 }
                 for (String tag : tags) {
                     i.cat(tag);
-                    shard.zadd(i.key(), order.getValue(), id);
+                    String key = i.key();
+                    shard.zadd(key, order.getValue(), id);
+                    shard.rpush(idx.cat(id).key(), key);
                 }
                 for (Map.Entry<String, Set<String>> field : textFields
                         .entrySet()) {
                     for (String word : field.getValue()) {
                         i.cat(field.getKey()).cat(word);
-                        shard.zadd(i.key(), order.getValue(), id);
+                        String key = i.key();
+                        shard.zadd(key, order.getValue(), id);
+                        shard.rpush(idx.cat(id).key(), key);
                     }
                 }
             }

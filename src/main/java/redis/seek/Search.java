@@ -29,10 +29,10 @@ public class Search {
         this(index, order, null);
     }
 
-    public Search(String index, String order, Shard[] shardFields) {
+    public Search(String index, String order, ShardField[] shardFields) {
         this.index = (new Nest("indexes")).cat(index);
         if (shardFields != null) {
-            for (Shard shard : shardFields) {
+            for (ShardField shard : shardFields) {
                 this.index.cat(shard.getField()).cat(shard.getValue());
                 writeQuery(shard.getField(), shard.getValue());
             }
