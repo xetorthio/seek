@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ShardedJedis;
 
 public class Entry {
@@ -49,30 +50,32 @@ public class Entry {
             if (shard.exists(idx.cat(id).key())) {
                 index.remove(id, sfields);
             }
+            Pipeline p = shard.pipelined();
             for (Map.Entry<String, Double> order : orders.entrySet()) {
                 Nest i = idx.cat("order").cat(order.getKey()).fork();
                 for (Map.Entry<String, String> field : fields.entrySet()) {
                     i.cat(field.getKey()).cat(field.getValue());
                     String key = i.key();
-                    shard.zadd(key, order.getValue(), id);
-                    shard.rpush(idx.cat(id).key(), key);
+                    p.zadd(key, order.getValue(), id);
+                    p.rpush(idx.cat(id).key(), key);
                 }
                 for (String tag : tags) {
                     i.cat(tag);
                     String key = i.key();
-                    shard.zadd(key, order.getValue(), id);
-                    shard.rpush(idx.cat(id).key(), key);
+                    p.zadd(key, order.getValue(), id);
+                    p.rpush(idx.cat(id).key(), key);
                 }
                 for (Map.Entry<String, Set<String>> field : textFields
                         .entrySet()) {
                     for (String word : field.getValue()) {
                         i.cat(field.getKey()).cat(word);
                         String key = i.key();
-                        shard.zadd(key, order.getValue(), id);
-                        shard.rpush(idx.cat(id).key(), key);
+                        p.zadd(key, order.getValue(), id);
+                        p.rpush(idx.cat(id).key(), key);
                     }
                 }
             }
+            p.execute();
             Seek.getPool().returnResource(jedis);
         } catch (Exception e) {
             Seek.getPool().returnBrokenResource(jedis);

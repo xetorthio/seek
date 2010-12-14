@@ -97,11 +97,11 @@ public class Search {
     }
 
     public List<String> run() {
-        return run(0);
+        return run(0, 0, 50);
     }
 
     @SuppressWarnings("unchecked")
-    public List<String> run(int cache) {
+    public List<String> run(int cache, int start, int end) {
         String query = getQuery();
         String tmpkey = index.cat("queries").cat(query).cat("tmp").key();
         String rkey = index.cat("queries").cat(query).cat("result").key();
@@ -110,10 +110,10 @@ public class Search {
         ShardedJedis jedis = Seek.getPool().getResource();
         Jedis shard = jedis.getShard(shardKey);
         try {
-            long start = System.nanoTime();
+            long tstart = System.nanoTime();
             List<String> result = null;
             if (jedis.exists(rkey)) {
-                Set<String> range = jedis.zrange(rkey, 0, 50);
+                Set<String> range = jedis.zrange(rkey, start, end);
                 result = Arrays.asList(range.toArray(new String[range.size()]));
             } else {
                 Pipeline pipeline = shard.pipelined();
@@ -127,7 +127,7 @@ public class Search {
                     pipeline.zinterstore(tmpkey, zparams, keys);
                     pipeline.zunionstore(rkey, zparams, tmpkey, rkey);
                 }
-                pipeline.zrange(rkey, 0, 50);
+                pipeline.zrange(rkey, start, end);
                 List<byte[]> rawresult = null;
                 if (cache == 0) {
                     pipeline.del(rkey, tmpkey);
@@ -142,7 +142,7 @@ public class Search {
                 result = prepareResult(rawresult);
             }
 
-            long elapsed = System.nanoTime() - start;
+            long elapsed = System.nanoTime() - tstart;
             Seek.getPool().returnResource(jedis);
             if (logger.isLoggable(Level.INFO)) {
                 logger.info(((double) elapsed / 1000000000d) + " seconds"
