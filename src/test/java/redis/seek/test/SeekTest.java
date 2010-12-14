@@ -3,6 +3,7 @@ package redis.seek.test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.pool.impl.GenericObjectPool.Config;
 import org.junit.After;
@@ -45,6 +46,30 @@ public class SeekTest extends Assert {
 
         assertEquals(1, ids.size());
         assertEquals("MLA98251174", ids.get(0));
+    }
+
+    @Test
+    public void dontCacheByDefault() {
+        addEntry();
+        search();
+        Set<String> keys = jedis.keys("*result*");
+        assertEquals(0, keys.size());
+    }
+
+    @Test
+    public void cache() throws InterruptedException {
+        addEntry();
+        Seek seek = new Seek();
+        Search search = seek.search("items", "start_date", new Shard(
+                "seller_id", "84689862"));
+        search.text("title", "ipod 160");
+        List<String> result = search.run(1);
+        Set<String> keys = jedis.keys("*result*");
+        assertEquals(1, result.size());
+        assertEquals(1, keys.size());
+        Thread.sleep(2000);
+        keys = jedis.keys("*result*");
+        assertEquals(0, keys.size());
     }
 
     private List<String> search() {

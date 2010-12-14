@@ -1,6 +1,7 @@
 package redis.seek;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -95,11 +96,14 @@ public class Search {
         return sb.toString();
     }
 
-    @SuppressWarnings("unchecked")
     public List<String> run() {
+        return run(0);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> run(int cache) {
         String query = getQuery();
-        String tmpkey = index.cat("queries").cat(
-                String.valueOf(this.hashCode())).cat("tmp").key();
+        String tmpkey = index.cat("queries").cat(query).cat("tmp").key();
         String rkey = index.cat("queries").cat(query).cat("result").key();
         ZParams zparams = new ZParams();
         zparams.aggregate(Aggregate.MAX);
@@ -107,20 +111,37 @@ public class Search {
         Jedis shard = jedis.getShard(shardKey);
         try {
             long start = System.nanoTime();
-            Pipeline pipeline = shard.pipelined();
+            List<String> result = null;
+            if (jedis.exists(rkey)) {
+                Set<String> range = jedis.zrange(rkey, 0, 50);
+                result = Arrays.asList(range.toArray(new String[range.size()]));
+            } else {
+                Pipeline pipeline = shard.pipelined();
 
-            List<ConjunctiveFormula> dnf = DNF.convert(formulas);
-            for (ConjunctiveFormula conjunctiveFormula : dnf) {
-                String[] keys = conjunctiveFormula.getLiterals().toArray(
-                        new String[conjunctiveFormula.getLiterals().size()]);
-                pipeline.zinterstore(tmpkey, zparams, keys);
-                pipeline.zunionstore(rkey, zparams, tmpkey, rkey);
+                List<ConjunctiveFormula> dnf = DNF.convert(formulas);
+                for (ConjunctiveFormula conjunctiveFormula : dnf) {
+                    String[] keys = conjunctiveFormula.getLiterals()
+                            .toArray(
+                                    new String[conjunctiveFormula.getLiterals()
+                                            .size()]);
+                    pipeline.zinterstore(tmpkey, zparams, keys);
+                    pipeline.zunionstore(rkey, zparams, tmpkey, rkey);
+                }
+                pipeline.zrange(rkey, 0, 50);
+                List<byte[]> rawresult = null;
+                if (cache == 0) {
+                    pipeline.del(rkey, tmpkey);
+                    List<Object> execute = pipeline.execute();
+                    rawresult = (List<byte[]>) execute.get(execute.size() - 2);
+                } else {
+                    pipeline.del(tmpkey);
+                    pipeline.expire(rkey, cache);
+                    List<Object> execute = pipeline.execute();
+                    rawresult = (List<byte[]>) execute.get(execute.size() - 3);
+                }
+                result = prepareResult(rawresult);
             }
-            pipeline.zrange(rkey, 0, 50);
-            pipeline.del(rkey, tmpkey);
-            List<Object> execute = pipeline.execute();
-            List<String> result = prepareResult((List<byte[]>) execute
-                    .get(execute.size() - 2));
+
             long elapsed = System.nanoTime() - start;
             Seek.getPool().returnResource(jedis);
             if (logger.isLoggable(Level.INFO)) {
