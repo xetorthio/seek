@@ -1,6 +1,5 @@
 package redis.seek;
 
-import redis.clients.jedis.Jedis;
 
 public class Index {
     private String name;

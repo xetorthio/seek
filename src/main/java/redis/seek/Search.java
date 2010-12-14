@@ -2,13 +2,10 @@ package redis.seek;
 
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.Tuple;
 import redis.clients.jedis.ZParams;
 import redis.clients.jedis.ZParams.Aggregate;
 import redis.clients.util.SafeEncoder;
@@ -55,7 +52,8 @@ public class Search {
         formulas.add(formula);
     }
 
-    public Set<Tuple> run() {
+    @SuppressWarnings("unchecked")
+    public List<String> run() {
         String tmpkey = index.cat("queries").cat(
                 String.valueOf(this.hashCode())).cat("tmp").key();
         String rkey = index.cat("queries").cat(String.valueOf(this.hashCode()))
@@ -72,20 +70,19 @@ public class Search {
             pipeline.zinterstore(tmpkey, zparams, keys);
             pipeline.zunionstore(rkey, zparams, tmpkey, rkey);
         }
-        pipeline.zrangeWithScores(rkey, 0, 50);
+        pipeline.zrange(rkey, 0, 50);
         pipeline.del(rkey, tmpkey);
         List<Object> execute = pipeline.execute();
         Nest.returnResource(jedis);
-        return getTupledSet((List<byte[]>) execute.get(execute.size() - 2));
+        return prepareResult((List<byte[]>) execute.get(execute.size() - 2));
     }
 
-    private Set<Tuple> getTupledSet(List<byte[]> membersWithScores) {
-        Set<Tuple> set = new LinkedHashSet<Tuple>();
-        Iterator<byte[]> iterator = membersWithScores.iterator();
+    private List<String> prepareResult(List<byte[]> members) {
+        List<String> result = new ArrayList<String>();
+        Iterator<byte[]> iterator = members.iterator();
         while (iterator.hasNext()) {
-            set.add(new Tuple(SafeEncoder.encode(iterator.next()), Double
-                    .valueOf(SafeEncoder.encode(iterator.next()))));
+            result.add(SafeEncoder.encode(iterator.next()));
         }
-        return set;
+        return result;
     }
 }

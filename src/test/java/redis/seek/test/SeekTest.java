@@ -1,6 +1,6 @@
 package redis.seek.test;
 
-import java.util.Set;
+import java.util.List;
 
 import org.apache.commons.pool.impl.GenericObjectPool.Config;
 import org.junit.After;
@@ -10,7 +10,6 @@ import org.junit.Test;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.Tuple;
 import redis.seek.Entry;
 import redis.seek.Index;
 import redis.seek.Nest;
@@ -39,22 +38,20 @@ public class SeekTest extends Assert {
     @Test
     public void indexAndSearch() {
         addEntry();
-        Set<Tuple> ids = search();
+        List<String> ids = search();
 
         assertEquals(1, ids.size());
-        Tuple t = ids.iterator().next();
-        assertTrue(1287278019 == (int) t.getScore());
-        assertEquals("MLA98251174", t.getElement());
+        assertEquals("MLA98251174", ids.get(0));
     }
 
-    private Set<Tuple> search() {
+    private List<String> search() {
         Seek seek = new Seek();
         Search search = seek.search("items", "start_date", new Shard(
                 "seller_id", "84689862"));
         search.field("category_id", "MLA31594", "MLA39056");
         search.tag("buy_it_now", "promotion");
         search.text("title", "ipod 160");
-        Set<Tuple> ids = search.run();
+        List<String> ids = search.run();
         return ids;
     }
 
