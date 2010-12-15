@@ -21,23 +21,12 @@ public class Text {
         Set<String> words = new HashSet<String>();
         for (String word : split) {
             String metaphone = encoder.encode(word);
-            if (metaphone.isEmpty()) {
+            if (metaphone.length() == 0) {
                 metaphone = word;
             }
 
             words.add(metaphone);
         }
-        /*
-         * Set<String> words = new HashSet<String>(); Scanner s = new
-         * Scanner(text); s.useDelimiter(delimiter); while (s.hasNext()) {
-         * String word = s.next(); // TODO: use stop words here? String
-         * metaphone = encoder.encode(word); if (metaphone.isEmpty()) {
-         * metaphone = word; }
-         * 
-         * words.add(metaphone); }
-         */
-
         return words;
     }
-
 }
