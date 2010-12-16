@@ -113,8 +113,8 @@ public class Search {
             long tstart = System.nanoTime();
             List<String> result = null;
             long count = 0;
-            if (jedis.exists(rkey)) {
-                Set<String> range = jedis.zrange(rkey, start, end);
+            Set<String> range = jedis.zrange(rkey, start, end);
+            if (range != null && range.size() > 0) {
                 count = jedis.zcard(rkey);
                 result = Arrays.asList(range.toArray(new String[range.size()]));
             } else {
