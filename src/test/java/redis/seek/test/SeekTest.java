@@ -2,6 +2,7 @@ package redis.seek.test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -19,6 +20,7 @@ import redis.seek.Result;
 import redis.seek.Search;
 import redis.seek.Seek;
 import redis.seek.ShardField;
+import redis.seek.Text;
 
 public class SeekTest extends Assert {
     private Jedis jedis;
@@ -104,6 +106,16 @@ public class SeekTest extends Assert {
                 new ShardField("seller_id", "84689862"));
         Result result = search(0, 0, 1);
         assertEquals(0, result.getTotalCount());
+    }
+
+    @Test
+    public void stopwords() {
+        Set<String> stopwords = new HashSet<String>();
+        stopwords.add("un");
+        stopwords.add("para");
+        Text text = new Text("Un collar para un perro", stopwords);
+        Set<String> words = text.getWords();
+        assertEquals(2, words.size());
     }
 
     private Result search(int cache, int start, int end) {

@@ -11,6 +11,12 @@ public class Text {
             .compile("[\\s|,|\\.\\s|_|\\-|\\(|\\)|\\\"]");
     private Metaphone encoder = new Metaphone();
     private String text;
+    private Set<String> stopwords = null;
+
+    public Text(String text, Set<String> stopwords) {
+        this.text = text;
+        this.stopwords = stopwords;
+    }
 
     public Text(String text) {
         this.text = text;
@@ -20,6 +26,9 @@ public class Text {
         String[] split = delimiter.split(text);
         Set<String> words = new HashSet<String>();
         for (String word : split) {
+            if (stopwords != null && stopwords.contains(word.toLowerCase())) {
+                continue;
+            }
             String metaphone = encoder.encode(word);
             if (metaphone.length() == 0) {
                 metaphone = word;

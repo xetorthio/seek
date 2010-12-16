@@ -35,6 +35,10 @@ public class Entry {
         textFields.put(field, (new Text(text)).getWords());
     }
 
+    public void addText(String field, String text, Set<String> stopwords) {
+        textFields.put(field, (new Text(text, stopwords)).getWords());
+    }
+
     public void save() {
         Nest idx = (new Nest("indexes")).cat(index.getName());
         ShardField[] sfields = new ShardField[shardFields.length];
