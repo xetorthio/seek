@@ -147,13 +147,13 @@ public class Search {
                 result = prepareResult(rawresult);
             }
 
-            long elapsed = System.nanoTime() - tstart;
+            double elapsedTime = ((double) (System.nanoTime() - tstart) / 1000000000d);
             Seek.getPool().returnResource(jedis);
             if (logger.isLoggable(Level.INFO)) {
-                logger.info(((double) elapsed / 1000000000d) + " seconds"
+                logger.info(((double) elapsedTime / 1000000000d) + " seconds"
                         + " - Query: " + query);
             }
-            return new Result(count, result);
+            return new Result(count, result, elapsedTime);
         } catch (Exception e) {
             Seek.getPool().returnBrokenResource(jedis);
             throw new SeekException(e.getMessage());
