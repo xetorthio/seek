@@ -138,29 +138,32 @@ public class Search {
                 } else {
                     pipeline.zrevrange(rkey, start, end);
                 }
-
-                pipeline.zcard(rkey);
                 List<byte[]> rawresult = null;
                 if (cache == 0) {
                     pipeline.del(rkey, tmpkey);
                     List<Object> execute = pipeline.execute();
-                    rawresult = (List<byte[]>) execute.get(execute.size() - 3);
-                    count = (Long) execute.get(execute.size() - 2);
+                    // get zrange or zrevrange result
+                    rawresult = (List<byte[]>) execute.get(execute.size() - 2);
+                    // get the last zunionstore output, which is the number of
+                    // elements in the result
+                    count = (Long) execute.get(execute.size() - 3);
                 } else {
                     pipeline.del(tmpkey);
                     pipeline.expire(rkey, cache);
                     List<Object> execute = pipeline.execute();
-                    rawresult = (List<byte[]>) execute.get(execute.size() - 4);
-                    count = (Long) execute.get(execute.size() - 3);
+                    // get zrange or zrevrange result
+                    rawresult = (List<byte[]>) execute.get(execute.size() - 3);
+                    // get the last zunionstore output, which is the number of
+                    // elements in the result
+                    count = (Long) execute.get(execute.size() - 4);
                 }
                 result = prepareResult(rawresult);
             }
 
-            double elapsedTime = ((double) (System.nanoTime() - tstart) / 1000000000d);
+            double elapsedTime = ((double) (System.nanoTime() - tstart) / (1000000000d));
             Seek.getPool().returnResource(jedis);
             if (logger.isLoggable(Level.INFO)) {
-                logger.info(((double) elapsedTime / 1000000000d) + " seconds"
-                        + " - Query: " + query);
+                logger.info(elapsedTime + " seconds" + " - Query: " + query);
             }
             return new Result(count, result, elapsedTime);
         } catch (Exception e) {
