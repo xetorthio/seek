@@ -25,6 +25,10 @@ public class Search {
     private StringBuilder sb;
     private final Logger logger = Logger.getLogger(Search.class.getName());
 
+    public enum Order {
+        ASC, DESC
+    }
+
     public Search(String index, String order) {
         this(index, order, null);
     }
@@ -97,11 +101,11 @@ public class Search {
     }
 
     public Result run() {
-        return run(0, 0, 50);
+        return run(0, 0, 49, Order.DESC);
     }
 
     @SuppressWarnings("unchecked")
-    public Result run(int cache, int start, int end) {
+    public Result run(int cache, int start, int end, Order order) {
         String query = getQuery();
         String tmpkey = index.cat("queries").cat(query).cat("tmp").key();
         String rkey = index.cat("queries").cat(query).cat("result").key();
@@ -129,7 +133,12 @@ public class Search {
                     pipeline.zinterstore(tmpkey, zparams, keys);
                     pipeline.zunionstore(rkey, zparams, tmpkey, rkey);
                 }
-                pipeline.zrange(rkey, start, end);
+                if (order.equals(Order.ASC)) {
+                    pipeline.zrange(rkey, start, end);
+                } else {
+                    pipeline.zrevrange(rkey, start, end);
+                }
+
                 pipeline.zcard(rkey);
                 List<byte[]> rawresult = null;
                 if (cache == 0) {

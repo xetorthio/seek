@@ -21,6 +21,7 @@ import redis.seek.Search;
 import redis.seek.Seek;
 import redis.seek.ShardField;
 import redis.seek.Text;
+import redis.seek.Search.Order;
 
 public class SeekTest extends Assert {
     private Jedis jedis;
@@ -61,7 +62,7 @@ public class SeekTest extends Assert {
 
         assertEquals(3, result.getTotalCount());
         assertEquals(1, result.getIds().size());
-        assertEquals("MLA98251174", result.getIds().get(0));
+        assertEquals("MLA98251176", result.getIds().get(0));
     }
 
     @Test
@@ -89,7 +90,7 @@ public class SeekTest extends Assert {
         Search search = seek.search("items", "start_date", new ShardField(
                 "seller_id", "84689862"));
         search.text("title", "ipod 160");
-        Result result = search.run(1, 0, 50);
+        Result result = search.run(1, 0, 50, Order.DESC);
         Set<String> keys = jedis.keys("*result*");
         assertEquals(1, result.getTotalCount());
         assertEquals(1, keys.size());
@@ -125,7 +126,7 @@ public class SeekTest extends Assert {
         search.field("category_id", "MLA31594", "MLA39056");
         search.tag("buy_it_now", "promotion");
         search.text("title", "ipod 160");
-        return search.run(cache, start, end);
+        return search.run(cache, start, end, Search.Order.DESC);
     }
 
     private Seek addEntry(String id, double timestamp) {
