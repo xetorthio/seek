@@ -82,7 +82,11 @@ public class Search {
     }
 
     public void tag(String... tags) {
-        formulas.add(new DisjunctiveFormula(tags));
+        DisjunctiveFormula formula = new DisjunctiveFormula();
+        for (String tag : tags) {
+            formula.addLiteral(index.cat(tag).key());
+        }
+        formulas.add(formula);
         writeQuery("tag", tags);
     }
 

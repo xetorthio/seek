@@ -119,6 +119,28 @@ public class SeekTest extends Assert {
         assertEquals(2, words.size());
     }
 
+    @Test
+    public void searchWithTags() {
+        Seek seek = new Seek();
+        Entry e = seek.index("items").add("123");
+        e.shardBy("seller_id");
+        e.addField("seller_id", "2");
+        e.addField("status", "active");
+        e.addField("type", "normal");
+        e.addText("title", "titulin");
+        e.addOrder("start_time", System.currentTimeMillis());
+        e.addTag("tagged");
+        e.save();
+
+        Search search = seek.search("items", "start_time", new ShardField(
+                "seller_id", "2"));
+        search.field("status", "active");
+        search.tag("tagged");
+        Result run = search.run();
+
+        assertEquals(1, run.getTotalCount());
+    }
+
     private Result search(int cache, int start, int end) {
         Seek seek = new Seek();
         Search search = seek.search("items", "start_date", new ShardField(
