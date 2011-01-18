@@ -62,6 +62,11 @@ public class Entry {
                     String key = i.key();
                     p.zadd(key, order.getValue(), id);
                     p.rpush(idx.cat(id).key(), key);
+
+                    // adds on facets
+                    p.hincrBy(idx.cat("info").cat(field.getKey()).key(), field
+                            .getValue(), 1);
+                    p.hincrBy(idx.cat("info").key(), field.getKey(), 1);
                 }
                 for (String tag : tags) {
                     i.cat(tag);
@@ -79,6 +84,7 @@ public class Entry {
                     }
                 }
             }
+            p.incr(idx.cat("info").cat("total").key());
             p.execute();
             Seek.getPool().returnResource(jedis);
         } catch (Exception e) {
