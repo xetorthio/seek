@@ -143,7 +143,7 @@ public class SeekTest extends Assert {
     }
 
     @Test
-    public void getInfo() {
+    public void info() {
         addEntry("MLA98251174", 1287278019);
         addEntry("MLA98251175", 1287278020);
         addEntry("MLA98251176", 1287278021);
@@ -156,6 +156,7 @@ public class SeekTest extends Assert {
         assertEquals(1, info.get("category_id").size());
         assertEquals(3, info.get("category_id").total());
         assertEquals(3, info.get("category_id").get("MLA31594").longValue());
+        assertEquals(3, info.get("tags").get("buy_it_now").longValue());
     }
 
     private Result search(int cache, int start, int end) {

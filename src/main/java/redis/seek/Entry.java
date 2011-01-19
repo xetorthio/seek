@@ -73,6 +73,10 @@ public class Entry {
                     String key = i.key();
                     p.zadd(key, order.getValue(), id);
                     p.rpush(idx.cat(id).key(), key);
+
+                    // adds on facets
+                    p.hincrBy(idx.cat("info").cat("tags").key(), tag, 1);
+                    p.hincrBy(idx.cat("info").key(), "tags", 1);
                 }
                 for (Map.Entry<String, Set<String>> field : textFields
                         .entrySet()) {
