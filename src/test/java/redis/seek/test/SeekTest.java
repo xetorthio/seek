@@ -143,18 +143,19 @@ public class SeekTest extends Assert {
     }
 
     @Test
-    public void generalFacets() {
+    public void getInfo() {
         addEntry("MLA98251174", 1287278019);
         addEntry("MLA98251175", 1287278020);
         addEntry("MLA98251176", 1287278021);
         Seek seek = new Seek();
-        Info info = seek.getInfo("items", new ShardField("seller_id",
-                "84689862"));
+        Info<String, Info<String, Long>> info = seek.info("items",
+                new ShardField("seller_id", "84689862"));
 
+        assertEquals(3, info.total());
         assertNotNull(info.get("category_id"));
         assertEquals(1, info.get("category_id").size());
+        assertEquals(3, info.get("category_id").total());
         assertEquals(3, info.get("category_id").get("MLA31594").longValue());
-        assertEquals(3, info.getTotal());
     }
 
     private Result search(int cache, int start, int end) {

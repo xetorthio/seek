@@ -1,6 +1,5 @@
 package redis.seek;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +37,9 @@ public class Seek {
     }
 
     @SuppressWarnings("unchecked")
-    public Info getInfo(String index, ShardField... shardFields) {
-        Info info = new Info();
+    public Info<String, Info<String, Long>> info(String index,
+            ShardField... shardFields) {
+        Info<String, Info<String, Long>> info = new Info<String, Info<String, Long>>();
         Nest base = (new Nest("indexes")).cat(index);
         if (shardFields != null) {
             for (ShardField shard : shardFields) {
@@ -67,7 +67,8 @@ public class Seek {
         for (String facetField : facets.keySet()) {
             List<Object> next = (List<Object>) iterator.next();
             Iterator<Object> it = next.iterator();
-            Map<String, Long> m = new HashMap<String, Long>();
+            Info<String, Long> m = new Info<String, Long>();
+            m.setTotal(Long.parseLong(facets.get(facetField)));
             while (it.hasNext()) {
                 m.put(SafeEncoder.encode((byte[]) it.next()), Long
                         .parseLong(SafeEncoder.encode((byte[]) it.next())));
