@@ -33,6 +33,11 @@ it uses [Jedis](http://github.com/xetorthio/jedis "Jedis") as a client for Redis
     search.text("title", "ipod 160");
     Result result = search.run(cache, start, end, Search.Order.DESC);
 
+## How do I remove?
+
+    Seek seek = new Seek();
+    seek.index("items").remove("MLA98251174", new ShardField("seller_id", "84689862"));
+
 ## Can I get general Facets for the shard?
 
     Seek seek = new Seek();
