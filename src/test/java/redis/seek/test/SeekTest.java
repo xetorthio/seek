@@ -157,6 +157,18 @@ public class SeekTest extends Assert {
         assertEquals(3, info.get("category_id").total());
         assertEquals(3, info.get("category_id").get("MLA31594").longValue());
         assertEquals(3, info.get("tags").get("buy_it_now").longValue());
+
+        seek.index("items").remove("MLA98251176",
+                new ShardField("seller_id", "84689862"));
+
+        info = seek.info("items", new ShardField("seller_id", "84689862"));
+
+        assertEquals(2, info.total());
+        assertNotNull(info.get("category_id"));
+        assertEquals(1, info.get("category_id").size());
+        assertEquals(2, info.get("category_id").total());
+        assertEquals(2, info.get("category_id").get("MLA31594").longValue());
+        assertEquals(2, info.get("tags").get("buy_it_now").longValue());
     }
 
     private Result search(int cache, int start, int end) {

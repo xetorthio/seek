@@ -62,6 +62,8 @@ public class Entry {
                     String key = i.key();
                     p.zadd(key, order.getValue(), id);
                     p.rpush(idx.cat(id).key(), key);
+                    p.hset(idx.cat(id).cat("fields").key(), field.getKey(),
+                            field.getValue());
 
                     // adds on facets
                     p.hincrBy(idx.cat("info").cat(field.getKey()).key(), field
@@ -73,6 +75,7 @@ public class Entry {
                     String key = i.key();
                     p.zadd(key, order.getValue(), id);
                     p.rpush(idx.cat(id).key(), key);
+                    p.rpush(idx.cat(id).cat("tags").key(), tag);
 
                     // adds on facets
                     p.hincrBy(idx.cat("info").cat("tags").key(), tag, 1);
