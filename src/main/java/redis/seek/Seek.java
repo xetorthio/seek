@@ -6,9 +6,10 @@ import java.util.Map;
 
 import org.apache.commons.pool.impl.GenericObjectPool.Config;
 
+import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisShardInfo;
+import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ShardedJedis;
-import redis.clients.jedis.ShardedJedisPipeline;
 import redis.clients.jedis.ShardedJedisPool;
 import redis.clients.util.Hashing;
 import redis.clients.util.SafeEncoder;
@@ -48,20 +49,19 @@ public class Seek {
         }
         final Nest idx = base.fork();
         ShardedJedis jedis = getPool().getResource();
-        String stotal = jedis.get(idx.cat("info").cat("total").key());
+        Jedis shard = jedis.getShard(idx.key());
+        String stotal = shard.get(idx.cat("info").cat("total").key());
         try {
             info.setTotal(Integer.parseInt(stotal));
         } catch (NumberFormatException e) {
             info.setTotal(0);
         }
-        final Map<String, String> facets = jedis.hgetAll(idx.cat("info").key());
-        List<Object> data = jedis.pipelined(new ShardedJedisPipeline() {
-            public void execute() {
-                for (String facetField : facets.keySet()) {
-                    hgetAll(idx.cat("info").cat(facetField).key());
-                }
-            }
-        });
+        final Map<String, String> facets = shard.hgetAll(idx.cat("info").key());
+        Pipeline p = shard.pipelined();
+        for (String facetField : facets.keySet()) {
+            p.hgetAll(idx.cat("info").cat(facetField).key());
+        }
+        List<Object> data = p.execute();
         getPool().returnResource(jedis);
         Iterator<Object> iterator = data.iterator();
         for (String facetField : facets.keySet()) {
@@ -76,5 +76,26 @@ public class Seek {
             info.put(facetField, m);
         }
         return info;
+    }
+
+    public void clearInfo(String index, ShardField... shardFields) {
+        Nest base = (new Nest("indexes")).cat(index);
+        if (shardFields != null) {
+            for (ShardField shard : shardFields) {
+                base.cat(shard.getField()).cat(shard.getValue());
+            }
+        }
+        final Nest idx = base.fork();
+        ShardedJedis jedis = getPool().getResource();
+        final Jedis shard = jedis.getShard(idx.key());
+        shard.del(idx.cat("info").cat("total").key());
+        final Map<String, String> facets = shard.hgetAll(idx.cat("info").key());
+        Pipeline p = shard.pipelined();
+        for (String facetField : facets.keySet()) {
+            p.del(idx.cat("info").cat(facetField).key());
+        }
+        p.del(idx.cat("info").key());
+        p.execute();
+        getPool().returnResource(jedis);
     }
 }

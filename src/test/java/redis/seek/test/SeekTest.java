@@ -171,6 +171,31 @@ public class SeekTest extends Assert {
         assertEquals(2, info.get("tags").get("buy_it_now").longValue());
     }
 
+    @Test
+    public void clearInfo() {
+        addEntry("MLA98251174", 1287278019);
+        addEntry("MLA98251175", 1287278020);
+        addEntry("MLA98251176", 1287278021);
+        Seek seek = new Seek();
+        Info<String, Info<String, Long>> info = seek.info("items",
+                new ShardField("seller_id", "84689862"));
+
+        assertEquals(3, info.total());
+        assertNotNull(info.get("category_id"));
+        assertEquals(1, info.get("category_id").size());
+        assertEquals(3, info.get("category_id").total());
+        assertEquals(3, info.get("category_id").get("MLA31594").longValue());
+        assertEquals(3, info.get("tags").get("buy_it_now").longValue());
+
+        seek.clearInfo("items", new ShardField("seller_id", "84689862"));
+
+        info = seek.info("items", new ShardField("seller_id", "84689862"));
+
+        assertEquals(0, info.total());
+        assertNull(info.get("category_id"));
+        assertEquals(0, info.size());
+    }
+
     private Result search(int cache, int start, int end) {
         Seek seek = new Seek();
         Search search = seek.search("items", "start_date", new ShardField(
