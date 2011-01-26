@@ -29,22 +29,19 @@ public class Search {
         ASC, DESC
     }
 
-    public Search(String index, String order) {
-        this(index, order, null);
+    public Search() {
+        this(null);
     }
 
-    public Search(String index, String order, ShardField[] shardFields) {
-        this.index = (new Nest("indexes")).cat(index);
-        if (shardFields != null) {
-            for (ShardField shard : shardFields) {
-                this.index.cat(shard.getField()).cat(shard.getValue());
-                writeQuery(shard.getField(), shard.getValue());
+    public Search(String[] shards) {
+        this.index = new Nest("");
+        if (shards != null) {
+            for (String shard : shards) {
+                this.index.cat(shard);
             }
         }
         this.index = this.index.fork();
         shardKey = this.index.key();
-        this.index.cat("order").cat(order);
-        this.index = this.index.fork();
     }
 
     private void writeQuery(String field, Object... values) {
@@ -111,8 +108,10 @@ public class Search {
     @SuppressWarnings("unchecked")
     public Result run(int cache, int start, int end, Order order) {
         String query = getQuery();
-        String tmpkey = index.cat("queries").cat(query).cat("tmp").key();
-        String rkey = index.cat("queries").cat(query).cat("result").key();
+        String tmpkey = index.cat(Seek.QUERIES).cat(query)
+                .cat(Seek.QUERIES_TMP).key();
+        String rkey = index.cat(Seek.QUERIES).cat(query).cat(
+                Seek.QUERIES_RESULT).key();
         ZParams zparams = new ZParams();
         zparams.aggregate(Aggregate.MAX);
         ShardedJedis jedis = Seek.getPool().getResource();

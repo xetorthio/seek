@@ -1,6 +1,5 @@
 package redis.seek;
 
-
 public class Nest {
     private static final String COLON = ":";
     private StringBuilder sb;
@@ -25,8 +24,10 @@ public class Nest {
     private void prefix() {
         if (sb == null) {
             sb = new StringBuilder();
-            sb.append(key);
-            sb.append(COLON);
+            if (key.length() > 0) {
+                sb.append(key);
+                sb.append(COLON);
+            }
         }
     }
 

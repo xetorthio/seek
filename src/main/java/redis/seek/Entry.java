@@ -10,17 +10,18 @@ import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ShardedJedis;
 
 public class Entry {
-    private Index index;
     private String id;
+    private Double order;
     private Map<String, String> fields = new HashMap<String, String>();
     private Map<String, Set<String>> textFields = new HashMap<String, Set<String>>();
     private Set<String> tags = new HashSet<String>();
-    private Map<String, Double> orders = new HashMap<String, Double>();
     private String[] shardFields;
+    private Seek seek;
 
-    public Entry(Index index, String id) {
-        this.index = index;
+    public Entry(Seek seek, String id, Double order) {
         this.id = id;
+        this.seek = seek;
+        this.order = order;
     }
 
     public void addField(String field, String value) {
@@ -40,68 +41,60 @@ public class Entry {
     }
 
     public void save() {
-        Nest idx = (new Nest("indexes")).cat(index.getName());
-        ShardField[] sfields = new ShardField[shardFields.length];
+        Nest idx = new Nest("");
+        String[] sfields = new String[shardFields.length];
         int s = 0;
         for (String field : shardFields) {
-            idx.cat(field).cat(fields.get(field));
-            sfields[s++] = new ShardField(field, fields.get(field));
+            idx.cat(fields.get(field));
+            sfields[s++] = fields.get(field);
         }
         idx = idx.fork();
         ShardedJedis jedis = Seek.getPool().getResource();
         Jedis shard = jedis.getShard(idx.key());
         try {
             if (shard.exists(idx.cat(id).key())) {
-                index.remove(id, sfields);
+                seek.remove(id, sfields);
             }
             Pipeline p = shard.pipelined();
-            for (Map.Entry<String, Double> order : orders.entrySet()) {
-                Nest i = idx.cat("order").cat(order.getKey()).fork();
-                for (Map.Entry<String, String> field : fields.entrySet()) {
-                    i.cat(field.getKey()).cat(field.getValue());
-                    String key = i.key();
-                    p.zadd(key, order.getValue(), id);
-                    p.rpush(idx.cat(id).key(), key);
-                    p.hset(idx.cat(id).cat("fields").key(), field.getKey(),
-                            field.getValue());
+            for (Map.Entry<String, String> field : fields.entrySet()) {
+                idx.cat(field.getKey()).cat(field.getValue());
+                String key = idx.key();
+                p.zadd(key, order, id);
+                p.rpush(idx.cat(id).key(), key);
+                p.hset(idx.cat(id).cat(Seek.FIELDS).key(), field.getKey(),
+                        field.getValue());
 
-                    // adds on facets
-                    p.hincrBy(idx.cat("info").cat(field.getKey()).key(), field
-                            .getValue(), 1);
-                    p.hincrBy(idx.cat("info").key(), field.getKey(), 1);
-                }
-                for (String tag : tags) {
-                    i.cat(tag);
-                    String key = i.key();
-                    p.zadd(key, order.getValue(), id);
-                    p.rpush(idx.cat(id).key(), key);
-                    p.rpush(idx.cat(id).cat("tags").key(), tag);
+                // adds on facets
+                p.hincrBy(idx.cat(Seek.INFO).cat(field.getKey()).key(), field
+                        .getValue(), 1);
+                p.hincrBy(idx.cat(Seek.INFO).key(), field.getKey(), 1);
+            }
+            for (String tag : tags) {
+                idx.cat(tag);
+                String key = idx.key();
+                p.zadd(key, order, id);
+                p.rpush(idx.cat(id).key(), key);
+                p.rpush(idx.cat(id).cat(Seek.TAGS).key(), tag);
 
-                    // adds on facets
-                    p.hincrBy(idx.cat("info").cat("tags").key(), tag, 1);
-                    p.hincrBy(idx.cat("info").key(), "tags", 1);
-                }
-                for (Map.Entry<String, Set<String>> field : textFields
-                        .entrySet()) {
-                    for (String word : field.getValue()) {
-                        i.cat(field.getKey()).cat(word);
-                        String key = i.key();
-                        p.zadd(key, order.getValue(), id);
-                        p.rpush(idx.cat(id).key(), key);
-                    }
+                // adds on facets
+                p.hincrBy(idx.cat(Seek.INFO).cat(Seek.TAGS).key(), tag, 1);
+                p.hincrBy(idx.cat(Seek.INFO).key(), Seek.TAGS, 1);
+            }
+            for (Map.Entry<String, Set<String>> field : textFields.entrySet()) {
+                for (String word : field.getValue()) {
+                    idx.cat(field.getKey()).cat(word);
+                    String key = idx.key();
+                    p.zadd(key, order, id);
+                    p.rpush(idx.cat(id).key(), key);
                 }
             }
-            p.incr(idx.cat("info").cat("total").key());
+            p.incr(idx.cat(Seek.INFO).cat(Seek.TOTAL).key());
             p.execute();
             Seek.getPool().returnResource(jedis);
         } catch (Exception e) {
             Seek.getPool().returnBrokenResource(jedis);
             throw new SeekException(e.getMessage());
         }
-    }
-
-    public void addOrder(String name, double value) {
-        orders.put(name, value);
     }
 
     public void shardBy(String... fields) {

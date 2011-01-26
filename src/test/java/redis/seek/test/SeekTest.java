@@ -15,12 +15,10 @@ import org.junit.Test;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisShardInfo;
 import redis.seek.Entry;
-import redis.seek.Index;
 import redis.seek.Info;
 import redis.seek.Result;
 import redis.seek.Search;
 import redis.seek.Seek;
-import redis.seek.ShardField;
 import redis.seek.Text;
 import redis.seek.Search.Order;
 
@@ -88,15 +86,14 @@ public class SeekTest extends Assert {
     public void cache() throws InterruptedException {
         addEntry("MLA98251174", 1287278019);
         Seek seek = new Seek();
-        Search search = seek.search("items", "start_date", new ShardField(
-                "seller_id", "84689862"));
+        Search search = seek.search("84689862");
         search.text("title", "ipod 160");
         Result result = search.run(1, 0, 50, Order.DESC);
-        Set<String> keys = jedis.keys("*result*");
+        Set<String> keys = jedis.keys("*:" + Seek.QUERIES_RESULT);
         assertEquals(1, result.getTotalCount());
         assertEquals(1, keys.size());
         Thread.sleep(2000);
-        keys = jedis.keys("*result*");
+        keys = jedis.keys("*:" + Seek.QUERIES_RESULT);
         assertEquals(0, keys.size());
     }
 
@@ -104,8 +101,7 @@ public class SeekTest extends Assert {
     public void remove() {
         addEntry("MLA98251174", 1287278019);
         Seek seek = new Seek();
-        seek.index("items").remove("MLA98251174",
-                new ShardField("seller_id", "84689862"));
+        seek.remove("MLA98251174", "84689862");
         Result result = search(0, 0, 1);
         assertEquals(0, result.getTotalCount());
     }
@@ -123,18 +119,16 @@ public class SeekTest extends Assert {
     @Test
     public void searchWithTags() {
         Seek seek = new Seek();
-        Entry e = seek.index("items").add("123");
+        Entry e = seek.add("123", new Double(System.currentTimeMillis()));
         e.shardBy("seller_id");
         e.addField("seller_id", "2");
         e.addField("status", "active");
         e.addField("type", "normal");
         e.addText("title", "titulin");
-        e.addOrder("start_time", System.currentTimeMillis());
         e.addTag("tagged");
         e.save();
 
-        Search search = seek.search("items", "start_time", new ShardField(
-                "seller_id", "2"));
+        Search search = seek.search("2");
         search.field("status", "active");
         search.tag("tagged");
         Result run = search.run();
@@ -148,27 +142,25 @@ public class SeekTest extends Assert {
         addEntry("MLA98251175", 1287278020);
         addEntry("MLA98251176", 1287278021);
         Seek seek = new Seek();
-        Info<String, Info<String, Long>> info = seek.info("items",
-                new ShardField("seller_id", "84689862"));
+        Info<String, Info<String, Long>> info = seek.info("84689862");
 
         assertEquals(3, info.total());
         assertNotNull(info.get("category_id"));
         assertEquals(1, info.get("category_id").size());
         assertEquals(3, info.get("category_id").total());
         assertEquals(3, info.get("category_id").get("MLA31594").longValue());
-        assertEquals(3, info.get("tags").get("buy_it_now").longValue());
+        assertEquals(3, info.get(Seek.TAGS).get("buy_it_now").longValue());
 
-        seek.index("items").remove("MLA98251176",
-                new ShardField("seller_id", "84689862"));
+        seek.remove("MLA98251176", "84689862");
 
-        info = seek.info("items", new ShardField("seller_id", "84689862"));
+        info = seek.info("84689862");
 
         assertEquals(2, info.total());
         assertNotNull(info.get("category_id"));
         assertEquals(1, info.get("category_id").size());
         assertEquals(2, info.get("category_id").total());
         assertEquals(2, info.get("category_id").get("MLA31594").longValue());
-        assertEquals(2, info.get("tags").get("buy_it_now").longValue());
+        assertEquals(2, info.get(Seek.TAGS).get("buy_it_now").longValue());
     }
 
     @Test
@@ -177,19 +169,18 @@ public class SeekTest extends Assert {
         addEntry("MLA98251175", 1287278020);
         addEntry("MLA98251176", 1287278021);
         Seek seek = new Seek();
-        Info<String, Info<String, Long>> info = seek.info("items",
-                new ShardField("seller_id", "84689862"));
+        Info<String, Info<String, Long>> info = seek.info("84689862");
 
         assertEquals(3, info.total());
         assertNotNull(info.get("category_id"));
         assertEquals(1, info.get("category_id").size());
         assertEquals(3, info.get("category_id").total());
         assertEquals(3, info.get("category_id").get("MLA31594").longValue());
-        assertEquals(3, info.get("tags").get("buy_it_now").longValue());
+        assertEquals(3, info.get(Seek.TAGS).get("buy_it_now").longValue());
 
-        seek.clearInfo("items", new ShardField("seller_id", "84689862"));
+        seek.clearInfo("84689862");
 
-        info = seek.info("items", new ShardField("seller_id", "84689862"));
+        info = seek.info("84689862");
 
         assertEquals(0, info.total());
         assertNull(info.get("category_id"));
@@ -198,8 +189,7 @@ public class SeekTest extends Assert {
 
     private Result search(int cache, int start, int end) {
         Seek seek = new Seek();
-        Search search = seek.search("items", "start_date", new ShardField(
-                "seller_id", "84689862"));
+        Search search = seek.search("84689862");
         search.field("category_id", "MLA31594", "MLA39056");
         search.tag("buy_it_now", "promotion");
         search.text("title", "ipod 160");
@@ -208,14 +198,12 @@ public class SeekTest extends Assert {
 
     private Seek addEntry(String id, double timestamp) {
         Seek seek = new Seek();
-        Index index = seek.index("items");
-        Entry entry = index.add(id);
+        Entry entry = seek.add(id, timestamp);
         entry.addField("category_id", "MLA31594");
         entry.addField("seller_id", "84689862");
         entry.addTag("buy_it_now");
         entry.addText("title",
                 "Apple Ipod Classic 160gb 160 8° Generacion 40.000 Canciones!");
-        entry.addOrder("start_date", timestamp);
         entry.shardBy("seller_id");
         entry.save();
         return seek;
