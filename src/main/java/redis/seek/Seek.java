@@ -37,17 +37,17 @@ public class Seek {
         return new Search();
     }
 
-    public Search search(String... shards) {
+    public Search search(Long... shards) {
         return new Search(shards);
     }
 
     @SuppressWarnings("unchecked")
-    public Info<String, Info<String, Long>> info(String... shards) {
+    public Info<String, Info<String, Long>> info(Long... shards) {
         Info<String, Info<String, Long>> info = new Info<String, Info<String, Long>>();
         Nest base = new Nest("");
         if (shards != null) {
-            for (String shard : shards) {
-                base.cat(shard);
+            for (Long shard : shards) {
+                base.cat(compressedLong(shard));
             }
         }
         final Nest idx = base.fork();
@@ -82,11 +82,11 @@ public class Seek {
         return info;
     }
 
-    public void clearInfo(String... shards) {
+    public void clearInfo(Long... shards) {
         Nest base = new Nest("");
         if (shards != null) {
-            for (String shard : shards) {
-                base.cat(shard);
+            for (Long shard : shards) {
+                base.cat(compressedLong(shard));
             }
         }
         final Nest idx = base.fork();
@@ -104,38 +104,61 @@ public class Seek {
         getPool().returnResource(jedis);
     }
 
-    public Entry add(String id, Double order) {
+    public Entry add(Long id, Double order) {
         return new Entry(this, id, order);
     }
 
-    public void remove(String id, String... shards) {
+    public static String compressedLong(Long l) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 8; i++) {
+            byte b = (byte) (l >>> (i * 8));
+            if (b != 0) {
+                sb.append((char) b);
+            }
+        }
+        return "#" + sb.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    public void remove(Long lid, Long... shardValues) {
+        String id = compressedLong(lid);
         Nest idx = new Nest("");
-        for (String field : shards) {
-            idx.cat(field);
+        for (Long value : shardValues) {
+            idx.cat(compressedLong(value));
         }
         Nest ndx = idx.fork();
         idx = ndx.cat(id).fork();
         ShardedJedis jedis = Seek.getPool().getResource();
         Jedis shard = jedis.getShard(ndx.key());
         try {
-            List<String> indexes = shard.lrange(idx.key(), 0, -1);
-            Map<String, String> fields = shard.hgetAll(idx.cat(Seek.FIELDS)
-                    .key());
-            List<String> tags = shard.lrange(idx.cat(Seek.TAGS).key(), 0, -1);
             Pipeline p = shard.pipelined();
+            // List<String> indexes =
+            p.lrange(idx.key(), 0, -1);
+            // Map<String, String> fields =
+            p.hgetAll(idx.cat(Seek.FIELDS).key());
+            // List<String> tags =
+            p.lrange(idx.cat(Seek.TAGS).key(), 0, -1);
+            List<Object> data = p.execute();
+            List<byte[]> indexes = (List<byte[]>) data.get(0);
+            List<byte[]> fields = (List<byte[]>) data.get(1);
+            List<byte[]> tags = (List<byte[]>) data.get(2);
+            p = shard.pipelined();
             p.decr(ndx.cat(Seek.INFO).cat(Seek.TOTAL).key());
-            for (String index : indexes) {
-                p.zrem(index, id);
+            for (byte[] index : indexes) {
+                p.zrem(SafeEncoder.encode(index), lid.toString());
             }
             p.del(idx.key());
-            for (String tag : tags) {
+            for (byte[] tag : tags) {
                 p.hincrBy(ndx.cat(Seek.INFO).key(), Seek.TAGS, -1);
-                p.hincrBy(ndx.cat(Seek.INFO).cat(Seek.TAGS).key(), tag, -1);
+                p.hincrBy(ndx.cat(Seek.INFO).cat(Seek.TAGS).key(), SafeEncoder
+                        .encode(tag), -1);
             }
-            for (String field : fields.keySet()) {
+            Iterator<byte[]> iterator = fields.iterator();
+            while (iterator.hasNext()) {
+                String field = SafeEncoder.encode(iterator.next());
+                String key = SafeEncoder.encode(iterator.next());
                 p.hincrBy(ndx.cat(Seek.INFO).key(), field, -1);
-                p.hincrBy(ndx.cat(Seek.INFO).cat(field).key(), fields
-                        .get(field), -1);
+                p.hincrBy(ndx.cat(Seek.INFO).cat(field).key(), key, -1);
             }
             p.del(idx.cat(Seek.FIELDS).key());
             p.del(idx.cat(Seek.TAGS).key());

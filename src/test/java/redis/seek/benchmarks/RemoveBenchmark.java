@@ -11,7 +11,7 @@ import redis.clients.jedis.JedisShardInfo;
 import redis.seek.Entry;
 import redis.seek.Seek;
 
-public class IndexBenchmark {
+public class RemoveBenchmark {
     private static final int SEARCHES = 10000;
 
     public static void main(String[] args) throws IOException {
@@ -27,8 +27,6 @@ public class IndexBenchmark {
 
         Seek seek = new Seek();
 
-        long start = System.nanoTime();
-
         for (int n = 0; n < SEARCHES; n++) {
             Entry entry = seek.add((long) n, 1287278019d);
             entry.addField("c", "MLA31594");
@@ -40,6 +38,10 @@ public class IndexBenchmark {
             entry.addShard(84689862l);
             entry.save();
         }
+        long start = System.nanoTime();
+        for (int n = 0; n < SEARCHES; n++) {
+            seek.remove((long) n, 84689862l);
+        }
         long elapsed = System.nanoTime() - start;
 
         jedis.quit();
@@ -48,5 +50,4 @@ public class IndexBenchmark {
         System.out.println(((1000 * SEARCHES) / (elapsed / 1000000))
                 + " indexaciones por segundo");
     }
-
 }

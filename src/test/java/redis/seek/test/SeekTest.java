@@ -44,39 +44,39 @@ public class SeekTest extends Assert {
 
     @Test
     public void indexAndSearch() {
-        addEntry("MLA98251174", 1287278019);
+        addEntry(98251174l, 1287278019);
         Result result = search(0, 0, 50);
 
         assertEquals(1, result.getTotalCount());
-        assertEquals("MLA98251174", result.getIds().get(0));
+        assertEquals("98251174", result.getIds().get(0));
     }
 
     @Test
     public void searchAndPaginate() {
-        addEntry("MLA98251174", 1287278019);
-        addEntry("MLA98251175", 1287278020);
-        addEntry("MLA98251176", 1287278021);
+        addEntry(98251174l, 1287278019);
+        addEntry(98251175l, 1287278020);
+        addEntry(98251176l, 1287278021);
 
         Result result = search(0, 0, 0);
 
         assertEquals(3, result.getTotalCount());
         assertEquals(1, result.getIds().size());
-        assertEquals("MLA98251176", result.getIds().get(0));
+        assertEquals("98251176", result.getIds().get(0));
     }
 
     @Test
     public void reindex() {
-        addEntry("MLA98251174", 1287278019);
-        addEntry("MLA98251174", 1287278019);
+        addEntry(98251174l, 1287278019);
+        addEntry(98251174l, 1287278019);
         Result result = search(0, 0, 50);
 
         assertEquals(1, result.getTotalCount());
-        assertEquals("MLA98251174", result.getIds().get(0));
+        assertEquals("98251174", result.getIds().get(0));
     }
 
     @Test
     public void dontCacheByDefault() {
-        addEntry("MLA98251174", 1287278019);
+        addEntry(98251174l, 1287278019);
         search(0, 0, 50);
         Set<String> keys = jedis.keys("*result*");
         assertEquals(0, keys.size());
@@ -84,9 +84,9 @@ public class SeekTest extends Assert {
 
     @Test
     public void cache() throws InterruptedException {
-        addEntry("MLA98251174", 1287278019);
+        addEntry(98251174l, 1287278019);
         Seek seek = new Seek();
-        Search search = seek.search("84689862");
+        Search search = seek.search(84689862l);
         search.text("title", "ipod 160");
         Result result = search.run(1, 0, 50, Order.DESC);
         Set<String> keys = jedis.keys("*:" + Seek.QUERIES_RESULT);
@@ -99,9 +99,9 @@ public class SeekTest extends Assert {
 
     @Test
     public void remove() {
-        addEntry("MLA98251174", 1287278019);
+        addEntry(98251174l, 1287278019);
         Seek seek = new Seek();
-        seek.remove("MLA98251174", "84689862");
+        seek.remove(98251174l, 84689862l);
         Result result = search(0, 0, 1);
         assertEquals(0, result.getTotalCount());
     }
@@ -119,8 +119,8 @@ public class SeekTest extends Assert {
     @Test
     public void searchWithTags() {
         Seek seek = new Seek();
-        Entry e = seek.add("123", new Double(System.currentTimeMillis()));
-        e.shardBy("seller_id");
+        Entry e = seek.add(123l, new Double(System.currentTimeMillis()));
+        e.addShard(2l);
         e.addField("seller_id", "2");
         e.addField("status", "active");
         e.addField("type", "normal");
@@ -128,7 +128,7 @@ public class SeekTest extends Assert {
         e.addTag("tagged");
         e.save();
 
-        Search search = seek.search("2");
+        Search search = seek.search(2l);
         search.field("status", "active");
         search.tag("tagged");
         Result run = search.run();
@@ -138,11 +138,11 @@ public class SeekTest extends Assert {
 
     @Test
     public void info() {
-        addEntry("MLA98251174", 1287278019);
-        addEntry("MLA98251175", 1287278020);
-        addEntry("MLA98251176", 1287278021);
+        addEntry(98251174l, 1287278019);
+        addEntry(98251175l, 1287278020);
+        addEntry(98251176l, 1287278021);
         Seek seek = new Seek();
-        Info<String, Info<String, Long>> info = seek.info("84689862");
+        Info<String, Info<String, Long>> info = seek.info(84689862l);
 
         assertEquals(3, info.total());
         assertNotNull(info.get("category_id"));
@@ -151,9 +151,9 @@ public class SeekTest extends Assert {
         assertEquals(3, info.get("category_id").get("MLA31594").longValue());
         assertEquals(3, info.get(Seek.TAGS).get("buy_it_now").longValue());
 
-        seek.remove("MLA98251176", "84689862");
+        seek.remove(98251176l, 84689862l);
 
-        info = seek.info("84689862");
+        info = seek.info(84689862l);
 
         assertEquals(2, info.total());
         assertNotNull(info.get("category_id"));
@@ -165,11 +165,11 @@ public class SeekTest extends Assert {
 
     @Test
     public void clearInfo() {
-        addEntry("MLA98251174", 1287278019);
-        addEntry("MLA98251175", 1287278020);
-        addEntry("MLA98251176", 1287278021);
+        addEntry(98251174l, 1287278019);
+        addEntry(98251175l, 1287278020);
+        addEntry(98251176l, 1287278021);
         Seek seek = new Seek();
-        Info<String, Info<String, Long>> info = seek.info("84689862");
+        Info<String, Info<String, Long>> info = seek.info(84689862l);
 
         assertEquals(3, info.total());
         assertNotNull(info.get("category_id"));
@@ -178,9 +178,9 @@ public class SeekTest extends Assert {
         assertEquals(3, info.get("category_id").get("MLA31594").longValue());
         assertEquals(3, info.get(Seek.TAGS).get("buy_it_now").longValue());
 
-        seek.clearInfo("84689862");
+        seek.clearInfo(84689862l);
 
-        info = seek.info("84689862");
+        info = seek.info(84689862l);
 
         assertEquals(0, info.total());
         assertNull(info.get("category_id"));
@@ -189,14 +189,14 @@ public class SeekTest extends Assert {
 
     private Result search(int cache, int start, int end) {
         Seek seek = new Seek();
-        Search search = seek.search("84689862");
+        Search search = seek.search(84689862l);
         search.field("category_id", "MLA31594", "MLA39056");
         search.tag("buy_it_now", "promotion");
         search.text("title", "ipod 160");
         return search.run(cache, start, end, Search.Order.DESC);
     }
 
-    private Seek addEntry(String id, double timestamp) {
+    private Seek addEntry(Long id, double timestamp) {
         Seek seek = new Seek();
         Entry entry = seek.add(id, timestamp);
         entry.addField("category_id", "MLA31594");
@@ -204,7 +204,7 @@ public class SeekTest extends Assert {
         entry.addTag("buy_it_now");
         entry.addText("title",
                 "Apple Ipod Classic 160gb 160 8° Generacion 40.000 Canciones!");
-        entry.shardBy("seller_id");
+        entry.addShard(84689862l);
         entry.save();
         return seek;
     }
