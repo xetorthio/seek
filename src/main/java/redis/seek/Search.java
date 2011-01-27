@@ -33,11 +33,11 @@ public class Search {
         this(null);
     }
 
-    public Search(Long[] shards) {
+    public Search(String[] shards) {
         this.index = new Nest("");
         if (shards != null) {
-            for (Long shard : shards) {
-                this.index.cat(Seek.compressedLong(shard));
+            for (String shard : shards) {
+                this.index.cat(shard);
             }
         }
         this.index = this.index.fork();

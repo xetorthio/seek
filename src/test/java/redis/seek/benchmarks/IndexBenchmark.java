@@ -30,14 +30,14 @@ public class IndexBenchmark {
         long start = System.nanoTime();
 
         for (int n = 0; n < SEARCHES; n++) {
-            Entry entry = seek.add((long) n, 1287278019d);
+            Entry entry = seek.add(String.valueOf(n), 1287278019d);
             entry.addField("c", "MLA31594");
             entry.addField("s", "84689862");
             entry.addTag("b");
             entry
                     .addText("t",
                             "Apple Ipod Classic 160gb 160 8° Generacion 40.000 Canciones!");
-            entry.addShard(84689862l);
+            entry.shardBy("s");
             entry.save();
         }
         long elapsed = System.nanoTime() - start;

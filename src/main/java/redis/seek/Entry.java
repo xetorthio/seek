@@ -10,16 +10,16 @@ import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.ShardedJedis;
 
 public class Entry {
-    private Long lid;
+    private String id;
     private Double order;
     private Map<String, String> fields = new HashMap<String, String>();
     private Map<String, Set<String>> textFields = new HashMap<String, Set<String>>();
     private Set<String> tags = new HashSet<String>();
-    private Long[] shardValues;
+    private String[] shardFields;
     private Seek seek;
 
-    public Entry(Seek seek, Long id, Double order) {
-        this.lid = id;
+    public Entry(Seek seek, String id, Double order) {
+        this.id = id;
         this.seek = seek;
         this.order = order;
     }
@@ -41,24 +41,25 @@ public class Entry {
     }
 
     public void save() {
-        String id = Seek.compressedLong(lid);
         Nest idx = new Nest("");
+        String[] sfields = new String[shardFields.length];
         int s = 0;
-        for (Long value : shardValues) {
-            idx.cat(Seek.compressedLong(value));
+        for (String field : shardFields) {
+            idx.cat(fields.get(field));
+            sfields[s++] = fields.get(field);
         }
         idx = idx.fork();
         ShardedJedis jedis = Seek.getPool().getResource();
         Jedis shard = jedis.getShard(idx.key());
         try {
             if (shard.exists(idx.cat(id).key())) {
-                seek.remove(lid, shardValues);
+                seek.remove(id, sfields);
             }
             Pipeline p = shard.pipelined();
             for (Map.Entry<String, String> field : fields.entrySet()) {
                 idx.cat(field.getKey()).cat(field.getValue());
                 String key = idx.key();
-                p.zadd(key, order, lid.toString());
+                p.zadd(key, order, id);
                 p.rpush(idx.cat(id).key(), key);
                 p.hset(idx.cat(id).cat(Seek.FIELDS).key(), field.getKey(),
                         field.getValue());
@@ -71,7 +72,7 @@ public class Entry {
             for (String tag : tags) {
                 idx.cat(tag);
                 String key = idx.key();
-                p.zadd(key, order, lid.toString());
+                p.zadd(key, order, id);
                 p.rpush(idx.cat(id).key(), key);
                 p.rpush(idx.cat(id).cat(Seek.TAGS).key(), tag);
 
@@ -83,7 +84,7 @@ public class Entry {
                 for (String word : field.getValue()) {
                     idx.cat(field.getKey()).cat(word);
                     String key = idx.key();
-                    p.zadd(key, order, lid.toString());
+                    p.zadd(key, order, id);
                     p.rpush(idx.cat(id).key(), key);
                 }
             }
@@ -96,7 +97,7 @@ public class Entry {
         }
     }
 
-    public void addShard(Long... values) {
-        shardValues = values;
+    public void shardBy(String... fields) {
+        shardFields = fields;
     }
 }
