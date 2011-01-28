@@ -77,7 +77,11 @@ public class Seek {
                 m.put(SafeEncoder.encode((byte[]) it.next()), Long
                         .parseLong(SafeEncoder.encode((byte[]) it.next())));
             }
-            info.put(facetField, m);
+            if (facetField.equals(Seek.TAGS)) {
+                info.put("tags", m);
+            } else {
+                info.put(facetField, m);
+            }
         }
         return info;
     }

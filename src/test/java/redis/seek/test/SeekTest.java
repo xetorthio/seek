@@ -149,7 +149,7 @@ public class SeekTest extends Assert {
         assertEquals(1, info.get("category_id").size());
         assertEquals(3, info.get("category_id").total());
         assertEquals(3, info.get("category_id").get("MLA31594").longValue());
-        assertEquals(3, info.get(Seek.TAGS).get("buy_it_now").longValue());
+        assertEquals(3, info.get("tags").get("buy_it_now").longValue());
 
         seek.remove("MLA98251176", "84689862");
 
@@ -160,7 +160,7 @@ public class SeekTest extends Assert {
         assertEquals(1, info.get("category_id").size());
         assertEquals(2, info.get("category_id").total());
         assertEquals(2, info.get("category_id").get("MLA31594").longValue());
-        assertEquals(2, info.get(Seek.TAGS).get("buy_it_now").longValue());
+        assertEquals(2, info.get("tags").get("buy_it_now").longValue());
     }
 
     @Test
@@ -176,7 +176,7 @@ public class SeekTest extends Assert {
         assertEquals(1, info.get("category_id").size());
         assertEquals(3, info.get("category_id").total());
         assertEquals(3, info.get("category_id").get("MLA31594").longValue());
-        assertEquals(3, info.get(Seek.TAGS).get("buy_it_now").longValue());
+        assertEquals(3, info.get("tags").get("buy_it_now").longValue());
 
         seek.clearInfo("84689862");
 
