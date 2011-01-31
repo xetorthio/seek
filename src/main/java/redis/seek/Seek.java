@@ -52,36 +52,41 @@ public class Seek {
         }
         final Nest idx = base.fork();
         ShardedJedis jedis = getPool().getResource();
-        Jedis shard = jedis.getShard(idx.key());
-        String stotal = shard.get(idx.cat(Seek.INFO).cat(Seek.TOTAL).key());
         try {
-            info.setTotal(Integer.parseInt(stotal));
-        } catch (NumberFormatException e) {
-            info.setTotal(0);
-        }
-        final Map<String, String> facets = shard.hgetAll(idx.cat(Seek.INFO)
-                .key());
-        Pipeline p = shard.pipelined();
-        for (String facetField : facets.keySet()) {
-            p.hgetAll(idx.cat(Seek.INFO).cat(facetField).key());
-        }
-        List<Object> data = p.execute();
-        getPool().returnResource(jedis);
-        Iterator<Object> iterator = data.iterator();
-        for (String facetField : facets.keySet()) {
-            List<Object> next = (List<Object>) iterator.next();
-            Iterator<Object> it = next.iterator();
-            Info<String, Long> m = new Info<String, Long>();
-            m.setTotal(Long.parseLong(facets.get(facetField)));
-            while (it.hasNext()) {
-                m.put(SafeEncoder.encode((byte[]) it.next()), Long
-                        .parseLong(SafeEncoder.encode((byte[]) it.next())));
+            Jedis shard = jedis.getShard(idx.key());
+            String stotal = shard.get(idx.cat(Seek.INFO).cat(Seek.TOTAL).key());
+            try {
+                info.setTotal(Integer.parseInt(stotal));
+            } catch (NumberFormatException e) {
+                info.setTotal(0);
             }
-            if (facetField.equals(Seek.TAGS)) {
-                info.put("tags", m);
-            } else {
-                info.put(facetField, m);
+            final Map<String, String> facets = shard.hgetAll(idx.cat(Seek.INFO)
+                    .key());
+            Pipeline p = shard.pipelined();
+            for (String facetField : facets.keySet()) {
+                p.hgetAll(idx.cat(Seek.INFO).cat(facetField).key());
             }
+            List<Object> data = p.execute();
+            getPool().returnResource(jedis);
+            Iterator<Object> iterator = data.iterator();
+            for (String facetField : facets.keySet()) {
+                List<Object> next = (List<Object>) iterator.next();
+                Iterator<Object> it = next.iterator();
+                Info<String, Long> m = new Info<String, Long>();
+                m.setTotal(Long.parseLong(facets.get(facetField)));
+                while (it.hasNext()) {
+                    m.put(SafeEncoder.encode((byte[]) it.next()), Long
+                            .parseLong(SafeEncoder.encode((byte[]) it.next())));
+                }
+                if (facetField.equals(Seek.TAGS)) {
+                    info.put("tags", m);
+                } else {
+                    info.put(facetField, m);
+                }
+            }
+        } catch (Exception e) {
+            pool.returnBrokenResource(jedis);
+            throw new SeekException(e);
         }
         return info;
     }
@@ -95,17 +100,22 @@ public class Seek {
         }
         final Nest idx = base.fork();
         ShardedJedis jedis = getPool().getResource();
-        final Jedis shard = jedis.getShard(idx.key());
-        shard.del(idx.cat(Seek.INFO).cat(Seek.TOTAL).key());
-        final Map<String, String> facets = shard.hgetAll(idx.cat(Seek.INFO)
-                .key());
-        Pipeline p = shard.pipelined();
-        for (String facetField : facets.keySet()) {
-            p.del(idx.cat(Seek.INFO).cat(facetField).key());
+        try {
+            final Jedis shard = jedis.getShard(idx.key());
+            shard.del(idx.cat(Seek.INFO).cat(Seek.TOTAL).key());
+            final Map<String, String> facets = shard.hgetAll(idx.cat(Seek.INFO)
+                    .key());
+            Pipeline p = shard.pipelined();
+            for (String facetField : facets.keySet()) {
+                p.del(idx.cat(Seek.INFO).cat(facetField).key());
+            }
+            p.del(idx.cat(Seek.INFO).key());
+            p.execute();
+            getPool().returnResource(jedis);
+        } catch (Exception e) {
+            pool.returnBrokenResource(jedis);
+            throw new SeekException(e);
         }
-        p.del(idx.cat(Seek.INFO).key());
-        p.execute();
-        getPool().returnResource(jedis);
     }
 
     public Entry add(String id, Double order) {
@@ -158,7 +168,7 @@ public class Seek {
             Seek.getPool().returnResource(jedis);
         } catch (Exception e) {
             Seek.getPool().returnBrokenResource(jedis);
-            throw new SeekException(e.getMessage());
+            throw new SeekException(e);
         }
     }
 }

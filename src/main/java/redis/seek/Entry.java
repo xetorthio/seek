@@ -93,7 +93,7 @@ public class Entry {
             Seek.getPool().returnResource(jedis);
         } catch (Exception e) {
             Seek.getPool().returnBrokenResource(jedis);
-            throw new SeekException(e.getMessage());
+            throw new SeekException(e);
         }
     }
 

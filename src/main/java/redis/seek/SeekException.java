@@ -6,4 +6,8 @@ public class SeekException extends RuntimeException {
     public SeekException(String msg) {
         super(msg);
     }
+
+    public SeekException(Throwable t) {
+        super(t);
+    }
 }

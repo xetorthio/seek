@@ -171,7 +171,7 @@ public class Search {
             return new Result(count, result, elapsedTime);
         } catch (Exception e) {
             Seek.getPool().returnBrokenResource(jedis);
-            throw new SeekException(e.getMessage());
+            throw new SeekException(e);
         }
     }
 
