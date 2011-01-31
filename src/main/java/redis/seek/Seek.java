@@ -85,7 +85,7 @@ public class Seek {
                 }
             }
         } catch (Exception e) {
-            pool.returnBrokenResource(jedis);
+            pool.returnResource(jedis);
             throw new SeekException(e);
         }
         return info;
@@ -113,7 +113,7 @@ public class Seek {
             p.execute();
             getPool().returnResource(jedis);
         } catch (Exception e) {
-            pool.returnBrokenResource(jedis);
+            pool.returnResource(jedis);
             throw new SeekException(e);
         }
     }
@@ -167,7 +167,7 @@ public class Seek {
             p.execute();
             Seek.getPool().returnResource(jedis);
         } catch (Exception e) {
-            Seek.getPool().returnBrokenResource(jedis);
+            Seek.getPool().returnResource(jedis);
             throw new SeekException(e);
         }
     }

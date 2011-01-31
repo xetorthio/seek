@@ -170,7 +170,7 @@ public class Search {
             }
             return new Result(count, result, elapsedTime);
         } catch (Exception e) {
-            Seek.getPool().returnBrokenResource(jedis);
+            Seek.getPool().returnResource(jedis);
             throw new SeekException(e);
         }
     }
