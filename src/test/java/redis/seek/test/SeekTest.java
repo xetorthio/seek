@@ -21,6 +21,9 @@ import redis.seek.Search;
 import redis.seek.Seek;
 import redis.seek.Text;
 import redis.seek.Search.Order;
+import redis.seek.search.ConjunctiveFormula;
+import redis.seek.search.DNF;
+import redis.seek.search.DisjunctiveFormula;
 
 public class SeekTest extends Assert {
     private Jedis jedis;
@@ -72,6 +75,56 @@ public class SeekTest extends Assert {
 
         assertEquals(1, result.getTotalCount());
         assertEquals("MLA98251174", result.getIds().get(0));
+    }
+
+    @Test
+    public void dnf() {
+        List<DisjunctiveFormula> formulas = new ArrayList<DisjunctiveFormula>();
+        formulas.add(new DisjunctiveFormula("a"));
+        formulas.add(new DisjunctiveFormula("b"));
+        formulas.add(new DisjunctiveFormula("c"));
+        List<ConjunctiveFormula> convert = DNF.convert(formulas);
+
+        assertEquals(1, convert.size());
+        assertEquals(3, convert.get(0).getLiterals().size());
+        assertEquals("a", convert.get(0).getLiterals().get(0));
+        assertEquals("b", convert.get(0).getLiterals().get(1));
+        assertEquals("c", convert.get(0).getLiterals().get(2));
+
+        formulas = new ArrayList<DisjunctiveFormula>();
+        formulas.add(new DisjunctiveFormula("a", "b"));
+        formulas.add(new DisjunctiveFormula("c", "d"));
+        convert = DNF.convert(formulas);
+
+        assertEquals(4, convert.size());
+        assertEquals(2, convert.get(0).getLiterals().size());
+        assertEquals("a", convert.get(0).getLiterals().get(0));
+        assertEquals("c", convert.get(0).getLiterals().get(1));
+        assertEquals(2, convert.get(1).getLiterals().size());
+        assertEquals("a", convert.get(1).getLiterals().get(0));
+        assertEquals("d", convert.get(1).getLiterals().get(1));
+        assertEquals(2, convert.get(2).getLiterals().size());
+        assertEquals("b", convert.get(2).getLiterals().get(0));
+        assertEquals("c", convert.get(2).getLiterals().get(1));
+        assertEquals(2, convert.get(3).getLiterals().size());
+        assertEquals("b", convert.get(3).getLiterals().get(0));
+        assertEquals("d", convert.get(3).getLiterals().get(1));
+
+        formulas = new ArrayList<DisjunctiveFormula>();
+        formulas.add(new DisjunctiveFormula("a"));
+        formulas.add(new DisjunctiveFormula("b"));
+        formulas.add(new DisjunctiveFormula("c", "d"));
+        convert = DNF.convert(formulas);
+
+        assertEquals(2, convert.size());
+        assertEquals(3, convert.get(0).getLiterals().size());
+        assertEquals("a", convert.get(0).getLiterals().get(0));
+        assertEquals("b", convert.get(0).getLiterals().get(1));
+        assertEquals("c", convert.get(0).getLiterals().get(2));
+        assertEquals(3, convert.get(1).getLiterals().size());
+        assertEquals("a", convert.get(1).getLiterals().get(0));
+        assertEquals("b", convert.get(1).getLiterals().get(1));
+        assertEquals("d", convert.get(1).getLiterals().get(2));
     }
 
     @Test
