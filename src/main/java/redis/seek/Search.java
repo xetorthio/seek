@@ -109,9 +109,12 @@ public class Search {
     public Result run(int cache, int start, int end, Order order) {
         String query = getQuery();
         String tmpkey = index.cat(Seek.QUERIES).cat(query)
-                .cat(Seek.QUERIES_TMP).key();
-        String rkey = index.cat(Seek.QUERIES).cat(query).cat(
-                Seek.QUERIES_RESULT).key();
+                .cat(Seek.QUERIES_TMP).cat(String.valueOf(Thread.currentThread().getId())).key();
+        String rkey = index.cat(Seek.QUERIES).cat(query)
+                .cat(Seek.QUERIES_RESULT).cat(String.valueOf(Thread.currentThread().getId())).key();
+        String rkeyCached = index.cat(Seek.QUERIES).cat(query)
+                .cat(Seek.QUERIES_RESULT).key();
+
         ZParams zparams = new ZParams();
         zparams.aggregate(Aggregate.MAX);
         ShardedJedis jedis = Seek.getPool().getResource();
@@ -120,13 +123,12 @@ public class Search {
             long tstart = System.nanoTime();
             List<String> result = null;
             long count = 0;
-            Set<String> range = jedis.zrange(rkey, start, end);
+            Set<String> range = jedis.zrange(rkeyCached, start, end);
             if (range != null && range.size() > 0) {
-                count = jedis.zcard(rkey);
+                count = jedis.zcard(rkeyCached);
                 result = Arrays.asList(range.toArray(new String[range.size()]));
             } else {
                 Pipeline pipeline = shard.pipelined();
-
                 List<ConjunctiveFormula> dnf = DNF.convert(formulas);
                 for (ConjunctiveFormula conjunctiveFormula : dnf) {
                     String[] keys = conjunctiveFormula.getLiterals()
@@ -152,13 +154,15 @@ public class Search {
                     count = (Long) execute.get(execute.size() - 3);
                 } else {
                     pipeline.del(tmpkey);
-                    pipeline.expire(rkey, cache);
+                    pipeline.rename(rkey, rkeyCached);
+                    pipeline.expire(rkeyCached, cache);
+                    pipeline.del(rkey);
                     List<Object> execute = pipeline.execute();
                     // get zrange or zrevrange result
-                    rawresult = (List<byte[]>) execute.get(execute.size() - 3);
+                    rawresult = (List<byte[]>) execute.get(execute.size() - 5);
                     // get the last zunionstore output, which is the number of
                     // elements in the result
-                    count = (Long) execute.get(execute.size() - 4);
+                    count = (Long) execute.get(execute.size() - 6);
                 }
                 result = prepareResult(rawresult);
             }

@@ -5,6 +5,10 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.pool.impl.GenericObjectPool.Config;
 import org.junit.After;
@@ -18,9 +22,9 @@ import redis.seek.Entry;
 import redis.seek.Info;
 import redis.seek.Result;
 import redis.seek.Search;
+import redis.seek.Search.Order;
 import redis.seek.Seek;
 import redis.seek.Text;
-import redis.seek.Search.Order;
 import redis.seek.search.ConjunctiveFormula;
 import redis.seek.search.DNF;
 import redis.seek.search.DisjunctiveFormula;
@@ -37,6 +41,10 @@ public class SeekTest extends Assert {
         List<JedisShardInfo> shards = new ArrayList<JedisShardInfo>();
         shards.add(new JedisShardInfo("localhost"));
         Config config = new Config();
+        config.maxActive = 100;
+        config.maxIdle = 100;
+        config.minIdle = 100;
+        config.testOnBorrow = true;
         Seek.configure(config, shards);
     }
 
@@ -238,6 +246,29 @@ public class SeekTest extends Assert {
         assertEquals(0, info.total());
         assertNull(info.get("category_id"));
         assertEquals(0, info.size());
+    }
+
+    @Test
+    public void parallelQueries() throws InterruptedException {
+        final AtomicInteger errors = new AtomicInteger();
+        addEntry("MLA98251174", 1287278019);
+        addEntry("MLA98251175", 1287278020);
+        addEntry("MLA98251176", 1287278021);
+
+        ExecutorService pool = Executors.newFixedThreadPool(50);
+        for (int n = 0; n < 100; n++) {
+            pool.execute(new Runnable() {
+                public void run() {
+                    Result result = search(0, 0, 100);
+                    if (3 != result.getTotalCount()) {
+                        errors.incrementAndGet();
+                    }
+                }
+            });
+        }
+        pool.shutdown();
+        pool.awaitTermination(10, TimeUnit.MINUTES);
+        assertEquals(0, errors.get());
     }
 
     private Result search(int cache, int start, int end) {
